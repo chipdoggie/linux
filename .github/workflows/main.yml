@@ -1,18 +1,20 @@
-name: Node.js CI
+name: Node.js CI and Docker Publish
 
 on:
   push:
-    branches: [main]
+    branches:
+      - main
   pull_request:
-    branches: [main]
+    branches:
+      - main
 
 jobs:
+  # First Job: Build and Test the Node.js Application
   build-and-test:
     runs-on: ubuntu-latest
-
     steps:
       # Step 1: Check out the repository
-      - name: Check out repository
+      - name: Check out code
         uses: actions/checkout@v2
 
       # Step 2: Set up Node.js
@@ -20,7 +22,6 @@ jobs:
         uses: actions/setup-node@v2
         with:
           node-version: 16
-          cache: 'npm'
 
       # Step 3: Install dependencies
       - name: Install dependencies
@@ -30,9 +31,28 @@ jobs:
       - name: Run tests
         run: npm test
 
-      # Optional: Start the application (for deployment validation or integration tests)
-      - name: Start the application
-        run: npm start &
-        env:
-          NODE_ENV: production
+  # Second Job: Build and Push Docker Image
+  build-and-push-docker:
+    runs-on: ubuntu-latest
+    needs: build-and-test  # Ensure this job runs only if 'build-and-test' succeeds
+
+    steps:
+      # Step 1: Check out the repository
+      - name: Check out code
+        uses: actions/checkout@v2
+
+      # Step 2: Log in to Docker Hub
+      - name: Log in to Docker Hub
+        uses: docker/login-action@v2
+        with:
+          username: ${{ secrets.DOCKER_USERNAME }}
+          password: ${{ secrets.DOCKER_PASSWORD }}
+
+      # Step 3: Build and push the Docker image
+      - name: Build and Push Docker Image
+        uses: docker/build-push-action@v4
+        with:
+          context: .
+          push: true
+          tags: ${{ secrets.DOCKER_USERNAME }}/gh-action-ci:latest
 
